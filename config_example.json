@@ -1,9 +1,9 @@
 {
-    "max_open_trades": 3,
+    "max_open_trades": 10,
     "stake_currency": "BTC",
-    "stake_amount": 0.05,
+    "stake_amount": 0.01,
     "fiat_display_currency": "USD",
-    "ticker_interval" : "5m",
+    "ticker_interval" : "1h",
     "dry_run": true,
     "trailing_stop": false,
     "unfilledtimeout": {
@@ -22,16 +22,19 @@
     "ask_strategy":{
         "use_order_book": false,
         "order_book_min": 1,
-        "order_book_max": 9
+        "order_book_max": 9,
+        "use_sell_signal": true,
+        "sell_profit_only": false,
+        "ignore_roi_if_buy_signal": false
     },
     "exchange": {
-        "name": "bittrex",
+        "name": "binance",
         "key": "your_exchange_key",
         "secret": "your_exchange_secret",
         "ccxt_config": {"enableRateLimit": true},
         "ccxt_async_config": {
             "enableRateLimit": true,
-            "rateLimit": 500
+            "rateLimit": 200
         },
         "pair_whitelist": [
             "ETH/BTC",
@@ -40,19 +43,20 @@
             "DASH/BTC",
             "ZEC/BTC",
             "XLM/BTC",
-            "NXT/BTC",
-            "POWR/BTC",
+            "XMR/BTC",
+            "XRP/BTC",
+            "BNB/BTC",
+            "LINK/BTC",
+            "EOS/BTC",
+            "TRX/BTC",
             "ADA/BTC",
-            "XMR/BTC"
+            "IOTA/BTC",
+            "XEM/BTC"
+
         ],
         "pair_blacklist": [
-            "DOGE/BTC"
+
         ]
-    },
-    "experimental": {
-        "use_sell_signal": false,
-        "sell_profit_only": false,
-        "ignore_roi_if_buy_signal": false
     },
     "edge": {
         "enabled": false,

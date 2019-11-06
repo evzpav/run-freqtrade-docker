@@ -4,32 +4,38 @@ import talib.abstract as ta
 from pandas import DataFrame
 
 import freqtrade.vendor.qtpylib.indicators as qtpylib
-from freqtrade.indicator_helpers import fishers_inverse
 from freqtrade.strategy.interface import IStrategy
 
 
-class BBRSI(IStrategy):
+class DefaultStrategy(IStrategy):
     """
     Default Strategy provided by freqtrade bot.
-    You can override it with your own strategy
+    Please do not modify this strategy, it's  intended for internal use only.
+    Please look at the SampleStrategy in the user_data/strategy directory
+    or strategy repository https://github.com/freqtrade/freqtrade-strategies
+    for samples and inspiration.
     """
+    INTERFACE_VERSION = 2
 
     # Minimal ROI designed for the strategy
     minimal_roi = {
-        "0": 0.2
+        "40": 0.0,
+        "30": 0.01,
+        "20": 0.02,
+        "0": 0.04
     }
 
     # Optimal stoploss designed for the strategy
     stoploss = -0.10
 
     # Optimal ticker interval for the strategy
-    ticker_interval = '1h'
+    ticker_interval = '5m'
 
     # Optional order type mapping
     order_types = {
-        'buy': 'stop',
-        'sell': 'stop',
-        'stoploss': 'market',
+        'buy': 'limit',
+        'sell': 'limit',
+        'stoploss': 'limit',
         'stoploss_on_exchange': False
     }
 
@@ -55,7 +61,6 @@ class BBRSI(IStrategy):
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         Adds several different TA indicators to the given DataFrame
-
         Performance Note: For the best performance be frugal on the number of indicators
         you are using. Let uncomment only the indicator you are using in your strategies
         or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
@@ -64,10 +69,31 @@ class BBRSI(IStrategy):
         :return: a Dataframe with all mandatory indicators for the strategies
         """
 
+        # Momentum Indicator
+        # ------------------------------------
+
+        # ADX
+        dataframe['adx'] = ta.ADX(dataframe)
+
+        # MACD
+        macd = ta.MACD(dataframe)
+        dataframe['macd'] = macd['macd']
+        dataframe['macdsignal'] = macd['macdsignal']
+        dataframe['macdhist'] = macd['macdhist']
+
+        # Minus Directional Indicator / Movement
+        dataframe['minus_di'] = ta.MINUS_DI(dataframe)
+
+        # Plus Directional Indicator / Movement
+        dataframe['plus_di'] = ta.PLUS_DI(dataframe)
 
         # RSI
         dataframe['rsi'] = ta.RSI(dataframe)
- 
+
+        # Stoch fast
+        stoch_fast = ta.STOCHF(dataframe)
+        dataframe['fastd'] = stoch_fast['fastd']
+        dataframe['fastk'] = stoch_fast['fastk']
 
         # Bollinger bands
         bollinger = qtpylib.bollinger_bands(qtpylib.typical_price(dataframe), window=20, stds=2)
@@ -75,7 +101,11 @@ class BBRSI(IStrategy):
         dataframe['bb_middleband'] = bollinger['mid']
         dataframe['bb_upperband'] = bollinger['upper']
 
-            
+        # EMA - Exponential Moving Average
+        dataframe['ema10'] = ta.EMA(dataframe, timeperiod=10)
+
+        # SMA - Simple Moving Average
+        dataframe['sma'] = ta.SMA(dataframe, timeperiod=40)
 
         return dataframe
 
@@ -88,9 +118,15 @@ class BBRSI(IStrategy):
         """
         dataframe.loc[
             (
-                (dataframe['rsi'] > 30) & 
-                (dataframe["close"] < dataframe['bb_lowerband'])
-            ), 
+                (dataframe['rsi'] < 35) &
+                (dataframe['fastd'] < 35) &
+                (dataframe['adx'] > 30) &
+                (dataframe['plus_di'] > 0.5)
+            ) |
+            (
+                (dataframe['adx'] > 65) &
+                (dataframe['plus_di'] > 0.5)
+            ),
             'buy'] = 1
 
         return dataframe
@@ -104,7 +140,16 @@ class BBRSI(IStrategy):
         """
         dataframe.loc[
             (
-                (dataframe['close'] > dataframe['bb_middleband']) 
+                (
+                    (qtpylib.crossed_above(dataframe['rsi'], 70)) |
+                    (qtpylib.crossed_above(dataframe['fastd'], 70))
+                ) &
+                (dataframe['adx'] > 10) &
+                (dataframe['minus_di'] > 0)
+            ) |
+            (
+                (dataframe['adx'] > 70) &
+                (dataframe['minus_di'] > 0.5)
             ),
             'sell'] = 1
         return dataframe
